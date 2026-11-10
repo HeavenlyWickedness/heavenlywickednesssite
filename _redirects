@@ -1,0 +1,8 @@
+# Old Squarespace paths
+/film          /         301
+/film/         /         301
+/cart          /store/   301
+/thank-you     /thank-you.html  301
+/events        /         301
+/events/       /         301
+/events/*      /         301
