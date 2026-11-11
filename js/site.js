@@ -123,146 +123,125 @@
     form.addEventListener("submit", function (e) { e.preventDefault(); form.classList.add("is-success"); });
   });
 
-  // Cast portraits: desktop hover/focus fills the viewport; touch opens a lightbox.
+  // Gazette: full article folds open beneath the quote.
+  document.querySelectorAll("[data-gazette-toggle]").forEach(function (btn) {
+    var panel = document.getElementById(btn.getAttribute("aria-controls"));
+    var label = btn.querySelector("[data-gazette-label]");
+    if (!panel) return;
+    function set(open) {
+      panel.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      label.textContent = open ? "Close the article" : "Read the full article";
+      if (open) panel.removeAttribute("inert"); else panel.setAttribute("inert", "");
+      panel.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+    set(false);
+    btn.addEventListener("click", function () {
+      var open = btn.getAttribute("aria-expanded") !== "true";
+      set(open);
+      if (open) setTimeout(function () {
+        // Bring the start of the article up to the lower part of the screen, keeping the image in view.
+        var y = panel.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.8;
+        if (y > window.scrollY + 8) window.scrollTo({ top: y, behavior: reduce ? "auto" : "smooth" });
+      }, 200);
+    });
+  });
+
+  // Cast sequence: the section pins and scroll drives each actor in turn.
+  // f runs 0..n as you scroll; actor i wipes in around f = i, then bleeds into colour and is named.
   (function () {
-    var figures = [].slice.call(document.querySelectorAll("[data-cast]"));
-    if (!figures.length) return;
-    var stage = document.querySelector(".cast-stage");
-    if (!stage) return;
-    var pics = [].slice.call(stage.querySelectorAll(".cast-stage-pic"));
-    var nameEl = stage.querySelector(".cast-stage-name");
-    var roleEl = stage.querySelector(".cast-stage-role");
-    var closeBtn = stage.querySelector(".cast-stage-close");
-    var on = 0;
-    var gen = 0;
-    var closeTimer = 0;
-    var hoverable = window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-
-    figures.forEach(function (fig) {
-      var src = fig.getAttribute("data-cast-src");
-      if (src) { var pre = new Image(); pre.src = src; }
-    });
-
-    function stageSrc(fig) {
-      var tall = window.innerHeight > window.innerWidth * 1.15;
-      var portrait = fig.getAttribute("data-cast-src-portrait");
-      if (tall && portrait) return portrait;
-      return fig.getAttribute("data-cast-src");
+    var sec = document.querySelector("[data-cast]");
+    if (!sec) return;
+    var frames = [].slice.call(sec.querySelectorAll("[data-cast-frame]"));
+    var ticks = [].slice.call(sec.querySelectorAll("[data-cast-go]"));
+    var now = sec.querySelector("[data-cast-now]");
+    var track = sec.querySelector(".cast-track");
+    var n = frames.length;
+    if (reduce || !n || !track) {
+      frames.forEach(function (f) { f.classList.add("is-named"); });
+      return;
     }
-    function applyPos(img, fig) {
-      var pos = fig.getAttribute("data-cast-pos") || "50% 22%";
-      // Portrait sources are already framed 3:4; use center.
-      if (img.getAttribute("src") && img.getAttribute("src").indexOf("-thumb-") !== -1) pos = "center center";
-      img.style.objectPosition = pos;
+    sec.classList.add("is-seq");
+    function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+    function ease(a, b, v) { var t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+    var vh = 1, top = 0, ticking = false, last = -1, inView = false;
+    function measure() {
+      vh = sec.querySelector(".cast-pin").offsetHeight || window.innerHeight;
+      top = track.getBoundingClientRect().top + window.scrollY;
     }
-    function show(fig) {
-      clearTimeout(closeTimer);
-      var src = stageSrc(fig);
-      var name = fig.getAttribute("data-cast-name") || "";
-      var role = fig.getAttribute("data-cast-role") || "";
-      nameEl.textContent = name;
-      roleEl.textContent = role;
-      document.body.classList.add("cast-on");
-      var cur = pics[on];
-      if (cur.getAttribute("src") === src && cur.classList.contains("is-on")) { applyPos(cur, fig); return; }
-      var token = ++gen;
-      var next = 1 - on;
-      var img = pics[next];
-      function reveal() {
-        if (token !== gen) return;
-        pics[on].classList.remove("is-on");
-        img.classList.add("is-on");
-        on = next;
+    function render() {
+      ticking = false;
+      var f = clamp((window.scrollY - top) / vh, -1, n);
+      var cur = 0;
+      frames.forEach(function (fr, i) {
+        var w = i === 0 ? 1 : ease(i - 0.3, i + 0.12, f);
+        var next = i + 1 < n ? ease(i + 0.7, i + 1.12, f) : 0;
+        var c = ease(i + (i === 0 ? -0.05 : 0.12), i + 0.62, f);
+        if (w > 0.5) cur = i;
+        fr.style.setProperty("--w", w.toFixed(4));
+        fr.style.setProperty("--g", (1 - c).toFixed(3));
+        fr.style.setProperty("--b", (1 - next * 0.55).toFixed(3));
+        fr.style.setProperty("--s", (1.07 - 0.07 * ease(i - 0.3, i + 0.9, f)).toFixed(4));
+        fr.classList.toggle("is-off", w <= 0 || next >= 1);
+        fr.classList.toggle("is-named", f > i + 0.18 && f < i + 0.95 || (i === n - 1 && f > i + 0.18));
+        if (ticks[i]) ticks[i].firstChild.style.setProperty("--p", clamp(f - i + 0.3, 0, 1).toFixed(3));
+      });
+      if (cur !== last) {
+        last = cur;
+        if (now) now.textContent = (cur < 9 ? "0" : "") + (cur + 1);
+        ticks.forEach(function (t, i) { if (i === cur) t.setAttribute("aria-current", "true"); else t.removeAttribute("aria-current"); });
       }
-      img.alt = name + (role ? " as " + role : "");
-      if (img.getAttribute("src") === src && img.complete && img.naturalWidth) {
-        applyPos(img, fig);
-        reveal();
-        return;
-      }
-      var done = false;
-      function go() {
-        if (done || token !== gen) return;
-        done = true;
-        reveal();
-      }
-      img.onload = go;
-      img.onerror = go;
-      img.src = src;
-      applyPos(img, fig);
-      if (img.complete && img.naturalWidth) go();
+      var r = sec.querySelector(".cast-pin").getBoundingClientRect();
+      var pinned = r.top <= 1 && r.bottom >= vh - 1;
+      document.body.classList.toggle("in-cast", pinned);
     }
-
-    function hide() {
-      clearTimeout(closeTimer);
-      gen += 1;
-      document.body.classList.remove("cast-on", "cast-lightbox");
-      pics.forEach(function (p) { p.classList.remove("is-on"); });
-    }
-
-    function scheduleHide() {
-      clearTimeout(closeTimer);
-      closeTimer = setTimeout(function () {
-        if (!document.body.classList.contains("cast-lightbox")) hide();
-      }, 60);
-    }
-
-    figures.forEach(function (fig) {
-      fig.addEventListener("pointerenter", function (e) {
-        if (e.pointerType === "touch") return;
-        if (document.body.classList.contains("cast-lightbox")) return;
-        if (!hoverable && e.pointerType !== "mouse" && e.pointerType !== "pen") return;
-        show(fig);
-      });
-      fig.addEventListener("pointerleave", function (e) {
-        if (document.body.classList.contains("cast-lightbox")) return;
-        var rt = e.relatedTarget;
-        if (rt && rt.closest && rt.closest("[data-cast]")) return;
-        scheduleHide();
-      });
-      fig.addEventListener("focusin", function () { show(fig); });
-      fig.addEventListener("focusout", function (e) {
-        if (document.body.classList.contains("cast-lightbox")) return;
-        var rt = e.relatedTarget;
-        if (rt && rt.closest && rt.closest("[data-cast]")) return;
-        scheduleHide();
-      });
-      fig.addEventListener("click", function (e) {
-        if (hoverable && e.pointerType !== "touch") return;
-        e.preventDefault();
-        document.body.classList.add("cast-lightbox");
-        show(fig);
-      });
-      fig.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          document.body.classList.add("cast-lightbox");
-          show(fig);
-        }
-      });
+    function onScrollCast() { if (!ticking && inView) { ticking = true; requestAnimationFrame(render); } }
+    measure(); render();
+    window.addEventListener("scroll", onScrollCast, { passive: true });
+    window.addEventListener("resize", function () { measure(); render(); });
+    window.addEventListener("load", function () { measure(); render(); });
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (en) {
+        inView = en[0].isIntersecting;
+        if (inView) { measure(); render(); } else document.body.classList.remove("in-cast");
+      }, { rootMargin: "50% 0px 50% 0px" }).observe(track);
+    } else inView = true;
+    function go(i) { measure(); window.scrollTo({ top: top + (i + 0.55) * vh, behavior: "smooth" }); }
+    ticks.forEach(function (t, i) { t.addEventListener("click", function () { go(i); }); });
+    // Arrow keys step through actors while a cast control has focus.
+    sec.addEventListener("keydown", function (e) {
+      if (!e.target.closest || !e.target.closest(".cast-ticks")) return;
+      var i = ticks.indexOf(e.target);
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); i = Math.min(n - 1, i + 1); ticks[i].focus(); go(i); }
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); i = Math.max(0, i - 1); ticks[i].focus(); go(i); }
     });
-
-    function closeLightbox() { hide(); }
-    if (closeBtn) closeBtn.addEventListener("click", function (e) { e.stopPropagation(); closeLightbox(); });
-    stage.addEventListener("click", function () {
-      if (document.body.classList.contains("cast-lightbox")) closeLightbox();
-    });
-    document.addEventListener("keydown", function (e) {
-      if (e.key !== "Escape") return;
-      if (document.body.classList.contains("cast-on") || document.body.classList.contains("cast-lightbox")) closeLightbox();
-    });
-    var sx = 0, sy = 0;
-    stage.addEventListener("touchstart", function (e) {
-      if (!document.body.classList.contains("cast-lightbox")) return;
-      sx = e.changedTouches[0].clientX;
-      sy = e.changedTouches[0].clientY;
-    }, { passive: true });
-    stage.addEventListener("touchend", function (e) {
-      if (!document.body.classList.contains("cast-lightbox")) return;
-      var t = e.changedTouches[0];
-      var dx = t.clientX - sx, dy = t.clientY - sy;
-      if (Math.abs(dx) > 48 || Math.abs(dy) > 48) closeLightbox();
-    }, { passive: true });
   })();
+
+  // Background clip: loads only near the viewport, silent and looping. Reduced motion keeps the still.
+  document.querySelectorAll("[data-lazy-video]").forEach(function (v) {
+    if (reduce) return;
+    function start() {
+      var srcs = [].slice.call(v.querySelectorAll("source"));
+      var small = window.matchMedia("(max-width: 900px)").matches;
+      srcs.forEach(function (s) {
+        var m = s.getAttribute("media");
+        if ((m && !small) || (!m && small)) { s.remove(); return; }
+        s.removeAttribute("media");
+        s.src = s.getAttribute("data-src");
+      });
+      v.muted = true;
+      v.load();
+      v.addEventListener("playing", function () { v.classList.add("is-playing"); }, { once: true });
+      var p = v.play(); if (p && p.catch) p.catch(function () {});
+    }
+    if (!("IntersectionObserver" in window)) { start(); return; }
+    var started = false;
+    new IntersectionObserver(function (en) {
+      en.forEach(function (e) {
+        if (e.isIntersecting && !started) { started = true; start(); }
+        else if (started) { if (e.isIntersecting) { var p = v.play(); if (p && p.catch) p.catch(function () {}); } else v.pause(); }
+      });
+    }, { rootMargin: "300px 0px" }).observe(v);
+  });
 
 })();
