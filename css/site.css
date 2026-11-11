@@ -9,6 +9,7 @@
   --line: rgba(236,233,228,0.12);
   --blood: #c01414;
   --ember: #ff4a3d;
+  --royal: #7F7CFF; /* tunnel blue, lifted for type. 6.0:1 on --ink */
   --plate: #e7e4de;
   --max: 1180px;
   --read: 640px;
@@ -175,7 +176,8 @@ body.menu-open .menu nav a:nth-child(5) { transition-delay: .2s; }
 .threshold-inner { position: relative; z-index: 2; text-align: center; padding: 80px 20px clamp(88px, 11vh, 120px); width: 100%; }
 .threshold h1 { margin: 0; }
 .threshold .mark { width: min(250px, 46vw); margin: 0 auto; }
-.threshold .note { margin: 24px auto 20px; max-width: 34ch; font-size: 13.5px; color: var(--mist); letter-spacing: .04em; }
+.threshold .note { margin: 24px auto 20px; max-width: 34ch; font-size: 13.5px; color: var(--royal); letter-spacing: .04em; }
+.ask p.note, .opening p.note { color: var(--royal); }
 .js .threshold .mark { opacity: 0; animation: emerge 3.4s var(--slow) 1.4s forwards; }
 .js .threshold .note, .js .threshold .btn-row { opacity: 0; animation: rise 2s var(--slow) 3.2s forwards; }
 .js .threshold .btn-row { animation-delay: 3.6s; }
@@ -219,13 +221,14 @@ body.menu-open .menu nav a:nth-child(5) { transition-delay: .2s; }
 .label.sm { width: min(170px, 44vw); }
 .label.invert { filter: invert(1); }
 
-/* Gazette: the quote sits over the cornfield, the full article folds open beneath it. */
+/* Gazette: the quote sits over the tunnel clip, the full article folds open beneath it. */
 .gazette-scene { height: 86vh; height: 86svh; min-height: 520px; display: grid; place-items: center; }
-.gazette-scene > img { position: absolute; inset: 0; }
+.gazette-scene > img, .gazette-scene > video { position: absolute; inset: 0; }
 .gazette-scene .veil {
   background:
-    radial-gradient(70% 60% at 50% 50%, rgba(6,5,5,.62) 0%, rgba(6,5,5,.25) 70%, rgba(6,5,5,0) 100%),
+    radial-gradient(70% 60% at 50% 50%, rgba(6,5,5,.72) 0%, rgba(6,5,5,.36) 70%, rgba(6,5,5,.08) 100%),
     linear-gradient(to bottom, var(--ink), rgba(6,5,5,0) 22%, rgba(6,5,5,0) 70%, var(--ink));
+  z-index: 1;
 }
 .gazette-over { position: relative; z-index: 2; text-align: center; padding: 0 22px; max-width: 980px; }
 .gazette-quote { margin: 0; }
@@ -275,8 +278,6 @@ body.menu-open .menu nav a:nth-child(5) { transition-delay: .2s; }
   transform: scale(var(--s)); transform-origin: 50% 40%;
   will-change: filter, transform;
 }
-/* Mason Versaw: wide close up only, so it stays whole, letterboxed on black. */
-.cast-coach .cast-img { object-fit: contain; object-position: center 46% !important; }
 .cast-shade {
   position: absolute; inset: 0; pointer-events: none;
   background:
@@ -359,10 +360,6 @@ body.in-cast .hdr.is-solid { background: linear-gradient(to bottom, rgba(6,5,5,.
   /* Phones: the portrait owns the top of the frame and fades to black; the title card sits beneath it, clear of every face. */
   .cast-frame picture { bottom: auto; height: calc(100% - 178px); -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent); mask-image: linear-gradient(to bottom, #000 72%, transparent); }
   .cast-frame picture .cast-img { object-position: center 20% !important; }
-  .cast-coach .cast-img {
-    object-fit: cover; height: auto; width: 175%; left: -9%; right: auto;
-    top: 42%; bottom: auto; aspect-ratio: 1800 / 731; transform: translateY(-50%) scale(var(--s));
-  }
   .cast-who { bottom: calc(max(22px, env(safe-area-inset-bottom)) + 34px); }
 }
 @media (min-width: 760px) {
